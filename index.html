@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Game Sederhana dengan Joystick + Start</title>
+  <style>
+    /* Gaya dasar, termasuk layar start */
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: white;
+      touch-action: none; /* mencegah scroll/halaman bergerak saat main */
+    }
+
+    #character {
+      position: relative; 
+      top: 100px;
+      left: 0px;
+      z-index: 5;
+      transition: none; /* supaya gerak halus pakai requestAnimationFrame */
+    }
+    
+    #Beni {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      z-index: 2;
+      transition: opacity 0.3s ease;
+    }
+    
+    #sword {
+      position: absolute;
+      width: 90px;
+      height: 120px;
+      left: 70px;
+      top: -10px;
+      z-index: 1;
+      transition: transform 0.2s ease;
+    }
+    
+    #enemy {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      z-index: 4;
+      transition: left 0.05s linear, top 0.05s linear;
+    }
+    
+    #enemyImg {
+      width: 100%;
+      height: 100%;
+      background-color: purple;
+      border-radius: 50%;
+      display: block;
+      transition: transform 0.2s ease;
+    }
+    
+    /* Health System */
+    #health-container {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 5px;
+      font-size: 30px;
+      z-index: 1000;
+    }
+    
+    .heart {
+      transition: opacity 0.3s ease;
+    }
+    
+    #kill-counter {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      background-color: white;
+      color: black;
+      padding: 5px 15px;
+      border-radius: 20px;
+      border: 2px solid black;
+      z-index: 1000;
+    }
+    
+    /* Joystick Styles */
+    #joystickContainer {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      backdrop-filter: blur(5px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      z-index: 1000;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      display: none; /* default hidden sampai start */
+    }
+    
+    #joystick {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s ease;
+    }
+    
+    #joystick:active {
+      background: rgba(255, 255, 255, 1);
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    
+    /* Slash Button */
+    #slashbut {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      border-radius: 100px;
+      padding: 20px 40px;
+      background-color: black;
+      color: white;
+      opacity: 0.8;
+      font-size: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      border: 2px solid white;
+      font-weight: bold;
+      display: none; /* default hidden */
+    }
+    
+    #slashbut:hover {
+      opacity: 1;
+      background-color: #333;
+      transform: scale(1.1);
+    }
+    
+    #slashbut:active {
+      transform: scale(0.95);
+    }
+    
+    /* Cooldown overlay pada tombol */
+    #slashCooldown {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 0%;
+      height: 100%;
+      background-color: rgba(255, 0, 0, 0.3);
+      border-radius: 100px;
+      z-index: 999;
+      pointer-events: none;
+      transition: width 0.3s linear;
+      display: none; /* default hidden */
+    }
+    
+    /* Start Screen */
+    #startScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      color: white;
+      font-size: 2rem;
+      backdrop-filter: blur(5px);
+    }
+    
+    #startButton {
+      margin-top: 30px;
+      padding: 20px 60px;
+      font-size: 2rem;
+      background: #4CAF50;
+      border: none;
+      border-radius: 60px;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 0 30px #4CAF50;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    #startButton:hover {
+      transform: scale(1.1);
+    }
+    
+    #startButton:active {
+      transform: scale(0.9);
+    }
+    
+    /* Sembunyikan elemen lama jika perlu */
+    #kanan, #kiri, #atas, #bawah {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- START SCREEN -->
+  <div id="startScreen">
+    <div>⚔️  WELCOME ⚔️</div>
+    <div style="font-size: 1.2rem; margin-top: 20px; text-align: center; max-width: 80%;">
+      USE JOYSTICK TO MOVE<br>CLICK SLASH TO UHH ATTACK
+    </div>
+    <button id="startButton">MULAI</button>
+  </div>
+
+  <!-- Game Elements -->
+  <div id="character">
+    <img src="beni.png" id="Beni" alt="beni" />
+    <img src="sword.png" id="sword" alt="sword" />
+  </div>
+  
+  <div id="enemy">
+    <img src="Enemy.png" id="enemyImg" alt="enemy" />
+  </div>
+
+  <!-- Health System -->
+  <div id="health-container">
+    <div class="heart" id="heart1">❤️</div>
+    <div class="heart" id="heart2">❤️</div>
+    <div class="heart" id="heart3">❤️</div>
+  </div>
+
+  <div id="kill-counter">Kills: 0</div>
+  
+  <!-- Joystick Container -->
+  <div id="joystickContainer">
+    <div id="joystick"></div>
+  </div>
+  
+  <!-- Slash Button -->
+  <button type="button" id="slashbut">SLASH</button>
+  
+  <!-- Visual cooldown indicator -->
+  <div id="slashCooldown"></div>
+
+  <script>
+    (function() {
+      // ==================== GAME VARIABLES ====================
+      let posisiX = 0;
+      let posisiY = 100;
+      let enemyX = 300;
+      let enemyY = 200;
+      
+      let health = 3;
+      let kills = 0;
+      let isInvincible = false;
+      let gameOver = false;        // gameOver akan di-reset saat start
+      let gameActive = false;      // apakah game sedang berjalan (start ditekan)
+      let enemySpeed = 2;
+      let enemyAttackCooldown = false;
+
+      // Joystick
+      let joystickActive = false;
+      let joystickPosition = { x: 0, y: 0 };
+      let joystickContainer, joystick;
+      let containerRect, containerCenter, maxDistance;
+
+      // Slash cooldown
+      let slashCooldown = false;
+      const SLASH_COOLDOWN_TIME = 300; // 0.3 detik
+
+      // DOM elements
+      const startScreen = document.getElementById('startScreen');
+      const startButton = document.getElementById('startButton');
+      const joystickContainerEl = document.getElementById('joystickContainer');
+      const slashButton = document.getElementById('slashbut');
+      const cooldownIndicator = document.getElementById('slashCooldown');
+      const character = document.getElementById('character');
+      const enemyEl = document.getElementById('enemy');
+      const beniImg = document.getElementById('Beni');
+      const swordImg = document.getElementById('sword');
+      const killCounter = document.getElementById('kill-counter');
+      const hearts = {
+        1: document.getElementById('heart1'),
+        2: document.getElementById('heart2'),
+        3: document.getElementById('heart3')
+      };
+
+      // ==================== FUNGSI START GAME ====================
+      function startGame() {
+        // Reset semua status
+        gameActive = true;
+        gameOver = false;
+        health = 3;
+        kills = 0;
+        posisiX = 0;
+        posisiY = 100;
+        enemyX = 300;
+        enemyY = 200;
+        enemySpeed = 2;
+        isInvincible = false;
+        enemyAttackCooldown = false;
+        slashCooldown = false;
+        
+        // Update tampilan
+        updateHealthDisplay();
+        killCounter.innerHTML = 'Kills: 0';
+        beniImg.style.opacity = '1';
+        beniImg.src = 'beni.png';  // asumsi file tersedia, jika tidak nanti error
+        // reset posisi karakter & musuh
+        character.style.left = posisiX + 'px';
+        character.style.top = posisiY + 'px';
+        enemyEl.style.left = enemyX + 'px';
+        enemyEl.style.top = enemyY + 'px';
+        
+        // Hilangkan start screen, munculkan kontrol
+        startScreen.style.display = 'none';
+        joystickContainerEl.style.display = 'block';
+        slashButton.style.display = 'block';
+        cooldownIndicator.style.display = 'block';
+        
+        // Inisialisasi ulang joystick (ukuran)
+        if (typeof updateJoystickDimensions === 'function') {
+          updateJoystickDimensions();
+        }
+      }
+
+      // ==================== JOYSTICK FUNCTIONS ====================
+      function initJoystick() {
+        joystickContainer = document.getElementById('joystickContainer');
+        joystick = document.getElementById('joystick');
+        
+        updateJoystickDimensions();
+        
+        joystick.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDrag);
+        
+        joystick.addEventListener('touchstart', startDrag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('touchend', stopDrag);
+        
+        window.addEventListener('resize', updateJoystickDimensions);
+      }
+
+      function updateJoystickDimensions() {
+        if (!joystickContainer) return;
+        containerRect = joystickContainer.getBoundingClientRect();
+        containerCenter = {
+          x: containerRect.width / 2,
+          y: containerRect.height / 2
+        };
+        maxDistance = (containerRect.width / 2) - (joystick.offsetWidth / 2);
+      }
+
+      function startDrag(e) {
+        if (!gameActive || gameOver) return;  // hanya aktif jika game aktif
+        e.preventDefault();
+        joystickActive = true;
+        joystick.style.transition = 'none';
+      }
+
+      function drag(e) {
+        if (!joystickActive || !gameActive || gameOver) return;
+        e.preventDefault();
+        
+        let clientX, clientY;
+        if (e.type === 'touchmove') {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+        
+        const rect = joystickContainer.getBoundingClientRect();
+        const relativeX = clientX - rect.left;
+        const relativeY = clientY - rect.top;
+        
+        const deltaX = relativeX - containerCenter.x;
+        const deltaY = relativeY - containerCenter.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (distance <= maxDistance) {
+          joystickPosition.x = deltaX / maxDistance;
+          joystickPosition.y = deltaY / maxDistance;
+          
+          joystick.style.left = `${relativeX}px`;
+          joystick.style.top = `${relativeY}px`;
+          joystick.style.transform = 'translate(-50%, -50%)';
+        } else {
+          const angle = Math.atan2(deltaY, deltaX);
+          const limitedX = Math.cos(angle) * maxDistance;
+          const limitedY = Math.sin(angle) * maxDistance;
+          
+          joystickPosition.x = limitedX / maxDistance;
+          joystickPosition.y = limitedY / maxDistance;
+          
+          joystick.style.left = `${containerCenter.x + limitedX}px`;
+          joystick.style.top = `${containerCenter.y + limitedY}px`;
+          joystick.style.transform = 'translate(-50%, -50%)';
+        }
+      }
+
+      function stopDrag(e) {
+        if (!joystickActive) return;
+        e.preventDefault();
+        
+        joystickActive = false;
+        joystickPosition = { x: 0, y: 0 };
+        
+        joystick.style.transition = 'all 0.2s ease';
+        joystick.style.left = '50%';
+        joystick.style.top = '50%';
+        joystick.style.transform = 'translate(-50%, -50%)';
+      }
+
+      // ==================== MOVEMENT ====================
+      function moveWithJoystick() {
+        if (!joystickActive || !gameActive || gameOver) return;
+        
+        const moveSpeed = 5;
+        const moveX = joystickPosition.x * moveSpeed;
+        const moveY = joystickPosition.y * moveSpeed;
+        
+        posisiX = Math.max(0, Math.min(500, posisiX + moveX));
+        posisiY = Math.max(0, Math.min(300, posisiY + moveY));
+        
+        character.style.left = posisiX + "px";
+        character.style.top = posisiY + "px";
+      }
+
+      // ==================== HEALTH & DAMAGE ====================
+      function takeDamage() {
+        if (gameOver || isInvincible || !gameActive) return;
+        
+        health--;
+        updateHealthDisplay();
+        
+        isInvincible = true;
+        beniImg.style.opacity = "0.5";
+        
+        updateCharacterSprite();
+        
+        if (health <= 0) {
+          gameOver = true;
+          beniImg.src = "dead.png"; // asumsi ada file dead.png
+          alert("GAME OVER! You died!");
+          return;
+        }
+        
+        setTimeout(() => {
+          isInvincible = false;
+          beniImg.style.opacity = "1";
+        }, 2000);
+      }
+
+      function updateHealthDisplay() {
+        for (let i = 1; i <= 3; i++) {
+          hearts[i].style.opacity = (i <= health) ? "1" : "0.3";
+        }
+      }
+
+      function updateCharacterSprite() {
+        if (kills >= 3) {
+          beniImg.src = "hit2.png";
+        } else if (kills >= 1) {
+          beniImg.src = "hit1.png";
+        } else if (health === 3) {
+          beniImg.src = "beni.png";
+        } else if (health === 2) {
+          beniImg.src = "gh1.png";
+        } else if (health === 1) {
+          // small chance sans
+          if (Math.random() < 0.2) {
+            beniImg.src = "sans.png";
+          } else {
+            beniImg.src = "gh2.png";
+          }
+        }
+      }
+
+      // ==================== KILL SYSTEM ====================
+      function addKill() {
+        kills++;
+        killCounter.innerHTML = `Kills: ${kills}`;
+        updateCharacterSprite();
+        enemySpeed = 2 + (kills * 0.5);
+      }
+
+      // ==================== SLASH ====================
+      function slash() {
+        if (!gameActive || gameOver || slashCooldown) return;
+        
+        slashCooldown = true;
+        
+        cooldownIndicator.style.width = "100%";
+        cooldownIndicator.style.transition = `width ${SLASH_COOLDOWN_TIME}ms linear`;
+        setTimeout(() => {
+          cooldownIndicator.style.width = "0%";
+        }, 10);
+        
+        setTimeout(() => {
+          slashCooldown = false;
+        }, SLASH_COOLDOWN_TIME);
+        
+        // Animasi pedang
+        swordImg.style.transform = "rotate(-45deg) scale(1.2)";
+        setTimeout(() => {
+          swordImg.style.transform = "rotate(0deg) scale(1)";
+        }, 200);
+        
+        // Hitbox sederhana
+        const hitbox = document.createElement("div");
+        hitbox.id = "hitbox";
+        hitbox.style.width = "80px";
+        hitbox.style.height = "80px";
+        
+        const characterRect = character.getBoundingClientRect();
+        hitbox.style.left = (characterRect.left + 70) + "px";
+        hitbox.style.top = (characterRect.top) + "px";
+        hitbox.style.backgroundColor = "red";
+        hitbox.style.opacity = "0.5";
+        hitbox.style.zIndex = "999";
+        hitbox.style.position = "fixed";
+        hitbox.style.pointerEvents = "none";
+        
+        document.body.appendChild(hitbox);
+        
+        // Cek tabrakan
+        checkCollision(hitbox);
+        
+        setTimeout(() => {
+          if (hitbox.parentNode) hitbox.parentNode.removeChild(hitbox);
+        }, 100);
+      }
+
+      function checkCollision(hitbox) {
+        const hitboxRect = hitbox.getBoundingClientRect();
+        const enemyRect = enemyEl.getBoundingClientRect();
+        
+        if (hitboxRect.left < enemyRect.right &&
+            hitboxRect.right > enemyRect.left &&
+            hitboxRect.top < enemyRect.bottom &&
+            hitboxRect.bottom > enemyRect.top) {
+          
+          addKill();
+          
+          enemyX = Math.random() * 500;
+          enemyY = Math.random() * 300;
+          enemyEl.style.left = enemyX + "px";
+          enemyEl.style.top = enemyY + "px";
+        }
+      }
+
+      // ==================== ENEMY AI ====================
+      function moveEnemy() {
+        if (!gameActive || gameOver) return;
+        
+        if (enemyX < posisiX) enemyX += enemySpeed;
+        if (enemyX > posisiX) enemyX -= enemySpeed;
+        if (enemyY < posisiY) enemyY += enemySpeed;
+        if (enemyY > posisiY) enemyY -= enemySpeed;
+        
+        enemyX = Math.max(0, Math.min(500, enemyX));
+        enemyY = Math.max(0, Math.min(300, enemyY));
+        
+        enemyEl.style.left = enemyX + "px";
+        enemyEl.style.top = enemyY + "px";
+        
+        const distance = Math.sqrt(
+          Math.pow(enemyX - posisiX, 2) + 
+          Math.pow(enemyY - posisiY, 2)
+        );
+        
+        if (distance < 50 && !enemyAttackCooldown && !isInvincible && !gameOver) {
+          enemyAttack();
+        }
+      }
+
+      function enemyAttack() {
+        if (gameOver || !gameActive) return;
+        
+        enemyAttackCooldown = true;
+        const enemyImg = document.getElementById("enemyImg");
+        enemyImg.style.transform = "scale(1.2)";
+        
+        takeDamage();
+        
+        setTimeout(() => {
+          enemyImg.style.transform = "scale(1)";
+        }, 200);
+        
+        setTimeout(() => {
+          enemyAttackCooldown = false;
+        }, 1000);
+      }
+
+      // ==================== GAME LOOP ====================
+      function gameLoop() {
+        if (gameActive && !gameOver) {
+          moveEnemy();
+          moveWithJoystick();
+        }
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ==================== INITIALIZATION ====================
+      window.onload = function() {
+        // Set posisi awal
+        character.style.top = posisiY + "px";
+        enemyEl.style.left = enemyX + "px";
+        enemyEl.style.top = enemyY + "px";
+        updateHealthDisplay();
+        
+        initJoystick();  // joystick tetap diinisialisasi meski hidden
+        
+        // Tombol start
+        startButton.addEventListener('click', startGame);
+        // Juga untuk layar sentuh
+        startButton.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startGame();
+        });
+        
+        // Slash button
+        slashButton.addEventListener('click', slash);
+        slashButton.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          slash();
+        });
+        
+        // Mulai loop
+        gameLoop();
+      };
+
+    })();
+  </script>
+</body>
+
+  </html>
